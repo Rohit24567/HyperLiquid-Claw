@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-js:
+    name: Lint JavaScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: scripts/package.json
+      - name: Install dependencies
+        run: cd scripts && npm install
+      - name: Check syntax
+        run: node --check scripts/hyperliquid.mjs scripts/analyze-coingecko.mjs scripts/check-positions.mjs scripts/scan-market.mjs
+
+  lint-python:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Check syntax
+        run: python -m py_compile scripts/analyze_market.py scripts/signals.py scripts/utils.py

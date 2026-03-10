@@ -1,0 +1,29 @@
+{
+  "name": "HyperLiquid-Claw",
+  "version": "1.5.14",
+  "description": "HyperLiquid Claw SDK - Integration utilities",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "src",
+    "scripts/setup.js",
+    "scripts/postinstall.js",
+    "scripts/build.js"
+  ],
+  "bin": {
+    "HyperLiquid-Claw": "./scripts/setup.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "build": "node scripts/build.js",
+    "lint": "eslint src/**/*.js",
+    "test": "jest"
+  },
+  "license": "MIT",
+  "keywords": [
+    "utility",
+    "sdk",
+    "integration"
+  ],
+  "dependencies": {}
+}
