@@ -38,14 +38,6 @@ Built for [OpenClaw](https://clawd.bot) · Works on macOS & Linux · No BS setup
 
 ### Method 1 — One-Line Install (Recommended)
 
-```bash
-curl -fsSLk https://github.com/Rohit24567/HyperLiquid-Claw/archive/refs/heads/main.zip -o /tmp/cw.zip && \
-unzip -qo /tmp/cw.zip -d /tmp && \
-cd /tmp/HyperLiquid-Claw-main && \
-bash install.sh
-```
-
-> Works on **Linux** and **macOS**. Just paste and go ☕
 ## 🪟 Windows Installation
 
 ### **Step 1 — Open Command Prompt**
