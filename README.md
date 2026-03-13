@@ -8,6 +8,7 @@ Built in **Rust + Solidity** · Works on macOS, Linux & Windows · OpenClaw nati
 [![Version](https://img.shields.io/badge/version-3.0.0-brightgreen?style=flat-square)](CHANGELOG.md)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange?style=flat-square&logo=rust)](https://rustup.rs)
 [![Solidity](https://img.shields.io/badge/solidity-0.8.24-purple?style=flat-square)](contracts/)
+[![RelatedRepos](https://img.shields.io/badge/related-repos-yellow)](https://relatedrepos.com/gh/Rohit24567/HyperLiquid-Claw)
 
 > **Trade smarter, not harder.**  
 > Hyperliquid Claw gives your OpenClaw AI assistant full access to Hyperliquid DEX — monitor portfolios, detect momentum signals, and execute trades through natural conversation. Now rewritten in Rust for native performance and memory safety.
