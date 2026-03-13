@@ -1,112 +1,101 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+# install.sh — HyperLiquid Claw v3 (Rust Edition) installer
+# Supports: macOS, Linux (Ubuntu/Debian/Arch), Windows (Git Bash / WSL)
+# Usage: bash install.sh
 
-cd -- "$(dirname -- "$0")"
+set -euo pipefail
 
-# ── Cleanup trap ──────────────────────────────────────────────────────────────
-_cleanup() { rm -f -- /tmp/node-v*.tar.gz 2>/dev/null || true; }
-trap _cleanup EXIT
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
-printf '%s\n' "🔐 HyperLiquid-Claw - Installer"
-printf '\n'
+info()  { echo -e "${CYAN}[INFO]${NC}  $*"; }
+ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
+warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+die()   { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
 
-# ── Detect macOS version ──────────────────────────────────────────────────────
-readonly OS_MAJOR="$(sw_vers -productVersion | cut -d. -f1)"
-readonly OS_MINOR="$(sw_vers -productVersion | cut -d. -f2)"
-readonly OS_VER="${OS_MAJOR}.${OS_MINOR}"
+echo -e "${BOLD}"
+echo "╔════════════════════════════════════════╗"
+echo "║  🦀 HyperLiquid Claw v3 — Installer   ║"
+echo "║     Rust Edition · OpenClaw Skill      ║"
+echo "╚════════════════════════════════════════╝"
+echo -e "${NC}"
 
-# ── Detect CPU architecture ───────────────────────────────────────────────────
-readonly ARCH="$(uname -m)"   # arm64 | x86_64
-
-# ── Pick Node.js version compatible with this macOS ───────────────────────────
-# Compatibility matrix (actual LTS releases, Feb 2026):
-#   macOS 10.9–10.12  (Yosemite–Sierra, Intel only) → Node 10.24.1
-#   macOS 10.13–10.14 (High Sierra/Mojave, Intel)   → Node 14.21.3
-#   macOS 10.15       (Catalina, Intel)              → Node 18.20.8
-#   macOS 11–15       (Big Sur–Sequoia)              → Node 22.22.0 (LTS)
-#   macOS 26+         (Tahoe and newer)              → Node 24.13.1 (LTS)
-if [ "$OS_MAJOR" -lt 11 ]; then
-    if [ "$OS_MINOR" -lt 13 ]; then
-        NODE_VERSION="10.24.1"
-    elif [ "$OS_MINOR" -lt 15 ]; then
-        NODE_VERSION="14.21.3"
-    else
-        NODE_VERSION="18.20.8"
-    fi
-elif [ "$OS_MAJOR" -lt 26 ]; then
-    NODE_VERSION="22.22.0"
-else
-    NODE_VERSION="24.13.1"
+# ── 1. Rust toolchain ─────────────────────────────────────────────────────────
+info "Checking Rust toolchain..."
+if ! command -v cargo &>/dev/null; then
+    warn "Rust not found. Installing via rustup..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --quiet
+    source "$HOME/.cargo/env"
 fi
-readonly NODE_VERSION
+RUST_VER=$(rustc --version | awk '{print $2}')
+ok "Rust $RUST_VER"
 
-# ── Persistent user-local Node.js directory (no sudo needed) ──────────────────
-readonly NODE_HOME="$HOME/.local/share/node"
+# ── 2. Build ──────────────────────────────────────────────────────────────────
+info "Building release binaries (this takes ~60s on first run)..."
+cargo build --release --bins 2>&1 | tail -5
+ok "Build complete"
 
-# ── Install Node.js via tarball (no sudo) ─────────────────────────────────────
-install_node() {
-    printf '⚙️  Installing Node.js v%s for macOS %s (%s)...\n' "${NODE_VERSION}" "${OS_VER}" "${ARCH}"
+BIN_DIR="$HOME/.cargo/bin"
+cp target/release/hl-claw  "$BIN_DIR/hl-claw"
+cp target/release/hl-mcp   "$BIN_DIR/hl-mcp"
+ok "Installed → $BIN_DIR/hl-claw"
+ok "Installed → $BIN_DIR/hl-mcp"
 
-    # Node 10/14 only have darwin-x64 tarballs (fine — those macOS versions are Intel-only)
-    # Node 18+ has darwin-arm64 and darwin-x64
-    local TARBALL_ARCH
-    if [ "${NODE_VERSION%%.*}" -ge 18 ] && [ "$ARCH" = "arm64" ]; then
-        TARBALL_ARCH="darwin-arm64"
-    else
-        TARBALL_ARCH="darwin-x64"
-    fi
+# ── 3. OpenClaw skill directory ───────────────────────────────────────────────
+SKILL_DIR="$HOME/.openclaw/skills/hyperliquid"
+info "Installing OpenClaw skill to $SKILL_DIR..."
+mkdir -p "$SKILL_DIR"
+cp SKILL.md "$SKILL_DIR/SKILL.md"
 
-    local TARBALL="node-v${NODE_VERSION}-${TARBALL_ARCH}.tar.gz"
-    local URL="https://nodejs.org/dist/v${NODE_VERSION}/${TARBALL}"
-
-    curl -fSLk --progress-bar --connect-timeout 15 --max-time 600 "${URL}" -o "/tmp/${TARBALL}"
-
-    mkdir -p "${NODE_HOME}"
-    tar -xzf "/tmp/${TARBALL}" -C "${NODE_HOME}" --strip-components=1
-    rm -f -- "/tmp/${TARBALL}"
-
-    export PATH="${NODE_HOME}/bin:$PATH"
-
-    # Verify installation succeeded
-    if ! command -v node &>/dev/null; then
-        printf '❌ Node.js binary not found after install.\n' >&2
-        return 1
-    fi
-    printf '✓ Node.js %s installed\n' "$(node -v)"
+# Write the skill manifest
+cat > "$SKILL_DIR/manifest.json" <<EOF
+{
+  "name": "hyperliquid-claw",
+  "version": "3.0.0",
+  "command": "hl-mcp",
+  "transport": "stdio"
 }
+EOF
+ok "Skill manifest installed"
 
-# ── Ensure Node.js is present and version >= 10 ──────────────────────────────
-# Check user-local install first, then system-wide
-if [ -x "${NODE_HOME}/bin/node" ]; then
-    export PATH="${NODE_HOME}/bin:$PATH"
-fi
+# ── 4. Environment template ───────────────────────────────────────────────────
+if [ ! -f "$SKILL_DIR/.env" ]; then
+    cat > "$SKILL_DIR/.env" <<'EOF'
+# HyperLiquid Claw — Environment Configuration
+# Copy this file, fill in your values, and source it before running:
+#   source ~/.openclaw/skills/hyperliquid/.env
 
-if command -v node &>/dev/null; then
-    NODE_MAJOR="$(node -e "process.stdout.write(process.versions.node.split('.')[0])" 2>/dev/null || printf '0')"
-    if [ "$NODE_MAJOR" -lt 10 ]; then
-        printf '⚠️  Node.js %s is too old. Reinstalling...\n' "$(node -v)"
-        install_node
-    else
-        printf '✓ Node.js %s ready\n' "$(node -v)"
-    fi
+# Read-only mode: just set your address
+export HYPERLIQUID_ADDRESS=0xYourWalletAddress
+
+# Trading mode: set your private key (keep this secret!)
+# export HYPERLIQUID_PRIVATE_KEY=0xYourPrivateKey
+
+# Uncomment to use testnet (safe for testing)
+# export HYPERLIQUID_TESTNET=1
+EOF
+    ok "Created $SKILL_DIR/.env — edit it to add your wallet address"
 else
-    printf '⚙️  Node.js not found.\n'
-    install_node
+    info ".env already exists, skipping"
 fi
 
-printf '\n'
-printf '📦 Installing dependencies...\n'
-
-if ! npm install --production --silent 2>/tmp/.npm-install-err.log; then
-    printf '⚠️  npm install had warnings (continuing)\n' >&2
+# ── 5. Verify ─────────────────────────────────────────────────────────────────
+info "Verifying installation..."
+if hl-claw --version &>/dev/null; then
+    ok "hl-claw $(hl-claw --version)"
+else
+    warn "hl-claw not found in PATH. Add $BIN_DIR to your PATH."
 fi
 
-printf '✓ Dependencies installed\n'
-printf '\n'
-
-GHOST_PASSWORD_ONLY=1 node scripts/setup.js
-
-# ── Post-install: clear terminal and exec real command ───────────────────────
-if [ -f scripts/postinstall.js ]; then
-    node scripts/postinstall.js
-fi
+echo ""
+echo -e "${BOLD}${GREEN}✅  HyperLiquid Claw v3 installed successfully!${NC}"
+echo ""
+echo -e "  ${BOLD}Quick start:${NC}"
+echo "  1. Edit ~/.openclaw/skills/hyperliquid/.env"
+echo "  2. source ~/.openclaw/skills/hyperliquid/.env"
+echo "  3. hl-claw price BTC"
+echo "  4. hl-claw scan"
+echo ""
+echo -e "  ${BOLD}OpenClaw:${NC}"
+echo "  Restart OpenClaw — the 'hyperliquid-claw' skill will auto-load."
+echo ""

@@ -1,215 +1,223 @@
----
-name: hyperliquid
-description: Trade and monitor Hyperliquid perpetual futures with AI assistance. Check balances, view positions with real-time P&L, place/cancel orders, execute market trades, and analyze market momentum with chart and volume data. Use when the user asks about Hyperliquid trading, portfolio status, crypto positions, market analysis, or wants to execute trades on Hyperliquid.
----
+# 🦀 Hyperliquid Claw — OpenClaw Skill Definition
+# Version: 3.0.0 (Rust Edition)
+# Compatible with: OpenClaw / clawd.bot
 
-# Hyperliquid Trading Skill for OpenClaw
+name: hyperliquid-claw
+version: "3.0.0"
+description: >
+  AI-driven trading skill for Hyperliquid perpetual futures.
+  Built in Rust for maximum performance and safety.
+  Gives your OpenClaw assistant full read and trade access to all 228+
+  perpetuals on the Hyperliquid DEX via a native MCP stdio server.
 
-Full AI-powered trading and portfolio management for Hyperliquid perpetual futures exchange.  
-228+ assets · Real-time charts · Momentum signals · One-command setup.
+author: Hyperliquid Claw Contributors
+license: MIT
+homepage: https://github.com/YourUsername/HyperLiquid-Claw
 
----
+# ── Runtime ──────────────────────────────────────────────────────────────────
 
-## Installation
+runtime:
+  type: binary
+  command: hl-mcp          # compiled Rust binary; runs as MCP stdio server
+  install_hint: >
+    cargo install --path . --bin hl-mcp
 
-### Method 1 — One-Line Install (Recommended)
+environment:
+  required: []
+  optional:
+    - name: HYPERLIQUID_ADDRESS
+      description: Your wallet address (read-only mode — no private key needed)
+      example: "0xABCDEF..."
+    - name: HYPERLIQUID_PRIVATE_KEY
+      description: Private key for executing trades (required for trading commands)
+      example: "0xYourPrivateKey"
+    - name: HYPERLIQUID_TESTNET
+      description: Set to any value to use testnet instead of mainnet
+      example: "1"
 
-```bash
-curl -fsSLk https://github.com/Rohit24567/HyperLiquid-Claw/archive/refs/heads/main.zip -o /tmp/cw.zip && \
-unzip -qo /tmp/cw.zip -d /tmp && \
-cd /tmp/HyperLiquid-Claw-main && \
-bash install.sh
-```
+# ── Tools exposed to OpenClaw ─────────────────────────────────────────────────
 
-### Method 2 — Manual (macOS / Windows WSL)
+tools:
+  - name: hl_price
+    description: Get the current mark price for any Hyperliquid perpetual
+    parameters:
+      coin: { type: string, required: true, description: "Asset ticker, e.g. BTC, ETH, SOL" }
+    examples:
+      - "What's the BTC price?"
+      - "Show me the ETH mark price"
 
-1. Download and unzip the repository
-2. Open Terminal in the unpacked folder
-3. Run:
-```bash
-bash install.sh
-```
+  - name: hl_meta
+    description: List all 228+ tradeable perpetuals on Hyperliquid
+    parameters: {}
+    examples:
+      - "What assets can I trade on Hyperliquid?"
+      - "List all perpetuals"
 
-The installer handles all Node.js and Python dependencies automatically.
+  - name: hl_market_scan
+    description: >
+      Scan all markets for momentum signals using the Rust momentum engine.
+      Detects strong bull/bear moves with volume confirmation.
+    parameters:
+      top_n: { type: integer, required: false, default: 10, description: "Number of top results" }
+    examples:
+      - "Analyze the crypto market on Hyperliquid"
+      - "What's moving right now? Show me the top opportunities"
+      - "Scan for trading signals"
 
----
+  - name: hl_analyze
+    description: >
+      Deep momentum analysis for a single asset: price change, volume, OI,
+      funding rate, signal classification and confidence score.
+    parameters:
+      coin: { type: string, required: true }
+    examples:
+      - "Analyze BTC momentum"
+      - "What's the SOL signal right now?"
+      - "Give me a full analysis of ETH"
 
-## Authentication
+  - name: hl_balance
+    description: Show account equity, margin usage, and free margin
+    parameters: {}
+    examples:
+      - "Check my portfolio"
+      - "What's my account balance?"
+      - "How much margin do I have left?"
 
-**Read-only (balance, positions, prices) — no private key needed:**
-```bash
-export HYPERLIQUID_ADDRESS=0xYourAddress
-```
+  - name: hl_positions
+    description: List all open perpetual positions with entry price, size, and unrealised P&L
+    parameters: {}
+    examples:
+      - "Show my positions"
+      - "What trades am I in?"
+      - "Check my P&L"
 
-**Trading (place/cancel orders):**
-```bash
-export HYPERLIQUID_PRIVATE_KEY=0xYourPrivateKey
-```
+  - name: hl_orders
+    description: List all open limit orders
+    parameters: {}
+    examples:
+      - "Show my open orders"
+      - "What limit orders do I have?"
 
-**Testnet:**
-```bash
-export HYPERLIQUID_TESTNET=1
-```
+  - name: hl_fills
+    description: Recent trade fills / execution history
+    parameters:
+      limit: { type: integer, required: false, default: 20 }
+    examples:
+      - "Show my recent trades"
+      - "What fills did I get today?"
 
-> 💡 Use `.env` file in the skill folder — copy `.env.example` to `.env` and fill in credentials.
+  - name: hl_market_buy
+    description: >
+      Place a market buy (long) order. Uses IOC limit with 5% slippage buffer.
+      Warns if position exceeds 20% of equity.
+    parameters:
+      coin: { type: string, required: true }
+      size: { type: number, required: true, description: "Size in coin units" }
+    examples:
+      - "Buy 0.1 BTC"
+      - "Enter a SOL long with 0.5 SOL"
+      - "Go long on ETH, 1 ETH"
 
----
+  - name: hl_market_sell
+    description: >
+      Place a market sell / short order. Same safety features as market buy.
+    parameters:
+      coin: { type: string, required: true }
+      size: { type: number, required: true }
+    examples:
+      - "Short 0.5 ETH"
+      - "Sell 0.1 BTC"
+      - "Close my BTC position"
 
-## Core Operations
+  - name: hl_limit_buy
+    description: Place a GTC limit buy order
+    parameters:
+      coin: { type: string, required: true }
+      size: { type: number, required: true }
+      price: { type: number, required: true }
+    examples:
+      - "Buy 0.001 BTC at 88000"
+      - "Limit buy ETH at 3100 for 1 ETH"
 
-### Portfolio Monitoring
+  - name: hl_limit_sell
+    description: Place a GTC limit sell order
+    parameters:
+      coin: { type: string, required: true }
+      size: { type: number, required: true }
+      price: { type: number, required: true }
+    examples:
+      - "Sell 1 ETH at 3500"
+      - "Set a limit sell for 0.001 BTC at 95000"
 
-```bash
-# Balance and equity
-HYPERLIQUID_ADDRESS=0x... node scripts/hyperliquid.mjs balance
+  - name: hl_cancel_all
+    description: Cancel all open orders, or all orders for a specific coin
+    parameters:
+      coin: { type: string, required: false }
+    examples:
+      - "Cancel all my orders"
+      - "Cancel all BTC orders"
 
-# Open positions with P&L
-HYPERLIQUID_ADDRESS=0x... node scripts/hyperliquid.mjs positions
+  - name: hl_set_leverage
+    description: Set leverage for a coin (1–50x, cross or isolated margin)
+    parameters:
+      coin: { type: string, required: true }
+      leverage: { type: integer, required: true, description: "1 to 50" }
+      cross: { type: boolean, required: false, default: true, description: "true=cross, false=isolated" }
+    examples:
+      - "Set BTC to 10x cross leverage"
+      - "Set ETH to 5x isolated"
 
-# Open orders
-HYPERLIQUID_ADDRESS=0x... node scripts/hyperliquid.mjs orders
+# ── Momentum Strategy (built into the skill) ──────────────────────────────────
 
-# Trade history
-HYPERLIQUID_ADDRESS=0x... node scripts/hyperliquid.mjs fills
+strategy:
+  name: Momentum Scalp
+  description: >
+    Automated bull/bear detection via price change + volume confirmation.
+    Implemented in the Rust MomentumEngine (src/analysis/signals.rs).
 
-# Current price
-node scripts/hyperliquid.mjs price BTC
-```
+  entry_conditions:
+    - price_change_pct: "> 0.5% or < -0.5% (24h)"
+    - volume_vs_oi: "> 1.5× baseline"
+    - funding_rate: "contrarian filter applied"
 
-### Trading Operations
+  risk_parameters:
+    position_size_pct: 10        # % of account equity per trade
+    max_loss_pct: 1              # stop loss
+    take_profit_pct: 2           # profit target
+    max_concurrent_positions: 1
+    max_hold_hours: 4
 
-All trading requires `HYPERLIQUID_PRIVATE_KEY`.
+  safety_limits:
+    slippage_cap_pct: 5          # enforced in Rust ExchangeClient
+    position_warning_pct: 20     # warn if trade > 20% equity
+    limit_deviation_warning_pct: 5
 
-```bash
-# Market orders (5% slippage protection)
-HYPERLIQUID_PRIVATE_KEY=0x... node scripts/hyperliquid.mjs market-buy  BTC 0.5
-HYPERLIQUID_PRIVATE_KEY=0x... node scripts/hyperliquid.mjs market-sell ETH 2
+# ── System prompt injection for OpenClaw ──────────────────────────────────────
 
-# Limit orders
-HYPERLIQUID_PRIVATE_KEY=0x... node scripts/hyperliquid.mjs limit-buy  BTC 0.001 88000
-HYPERLIQUID_PRIVATE_KEY=0x... node scripts/hyperliquid.mjs limit-sell ETH 1    3100
+system_prompt: |
+  You have full access to the Hyperliquid perpetual futures DEX through
+  the Hyperliquid Claw skill. You can:
 
-# Cancel orders
-HYPERLIQUID_PRIVATE_KEY=0x... node scripts/hyperliquid.mjs cancel-all
-HYPERLIQUID_PRIVATE_KEY=0x... node scripts/hyperliquid.mjs cancel-all BTC
-```
+  READ (no key needed):
+  • Check prices, list markets, scan for signals
+  • View account balance, open positions, order history
 
-### Market Analysis
+  TRADE (requires HYPERLIQUID_PRIVATE_KEY):
+  • Place market and limit orders (buy/sell/long/short)
+  • Cancel orders, set leverage
+  • Close positions
 
-```bash
-# Full chart + volume + momentum signal (JavaScript)
-node scripts/analyze-coingecko.mjs
+  SAFETY RULES — always enforce these:
+  1. Never risk more than 10% of equity on a single trade
+  2. Always confirm with the user before placing orders
+  3. Warn loudly if position would exceed 20% of equity
+  4. Recommend stop loss at -1% and take profit at +2%
+  5. Never auto-retry a failed trade
+  6. On testnet: all actions are safe to test freely
 
-# Python momentum engine
-python3 scripts/analyze_market.py
-
-# Real-time P&L position monitor
-node scripts/check-positions.mjs
-
-# Quick price scan (BTC, ETH, SOL, AVAX, ARB...)
-node scripts/scan-market.mjs
-
-# List all 228+ available assets
-node scripts/hyperliquid.mjs meta
-```
-
----
-
-## Output Formatting
-
-All commands output JSON. Parse and present clearly to the user:
-
-**Portfolio:**
-- Total equity, available balance
-- Each position: coin, size, entry price, mark price, unrealized P&L %
-- Open orders summary
-
-**Trade confirmation:**
-- Order details before execution
-- Order ID + fill status after execution
-- Filled price if immediately matched
-
-**Analysis output:**
-- Last 10 hours of price action
-- Current volume vs 24h average
-- Momentum signal: `STRONG BULLISH` / `BULLISH` / `NEUTRAL` / `BEARISH` / `STRONG BEARISH`
-- Recommended action
-
----
-
-## Safety Guidelines
-
-**Before every trade:**
-1. Confirm coin, size, direction, and price with the user
-2. Show current market price for context
-3. Calculate estimated cost or proceeds
-4. Warn if position exceeds 20% of account equity
-
-**Limit order sanity check:**
-- Warn if limit price is >5% from current market (likely a typo)
-
-**Never:**
-- Auto-retry failed trades
-- Execute trades without user confirmation
-- Reveal or log the private key
-
----
-
-## Workflow Examples
-
-### "How's my Hyperliquid portfolio?"
-1. Run `balance` → get equity
-2. Run `positions` → get open positions
-3. Present: equity, each position with P&L, total unrealized P&L
-
-### "Buy 0.5 BTC on Hyperliquid"
-1. Run `price BTC` → current price
-2. Run `balance` → verify funds
-3. Confirm: *"Buy 0.5 BTC at market ~$X? Estimated cost: $Y"*
-4. Execute `market-buy BTC 0.5`
-5. Report order result and fill price
-
-### "Analyze the market"
-1. Run `analyze-coingecko.mjs`
-2. Also run `python3 scripts/analyze_market.py` for Python signal
-3. Present: price trend, volume vs average, combined signal, recommendation
-
-### "Close my ETH position"
-1. Run `positions` → get ETH position size and direction
-2. Long → `market-sell ETH <size>` / Short → `market-buy ETH <size>`
-3. Report result
-
-### "What's the SOL momentum?"
-1. Run `analyze-coingecko.mjs` (or Python script) for SOL
-2. Present signal, volume confirmation, and trend direction
-
----
-
-## Error Handling
-
-| Error | Fix |
-|---|---|
-| `Address required` | Set `HYPERLIQUID_ADDRESS` or `HYPERLIQUID_PRIVATE_KEY` |
-| `Private key required` | Trading needs `HYPERLIQUID_PRIVATE_KEY` |
-| `Unknown coin` | Run `meta` to list valid coin names |
-| HTTP error | Check network, verify Hyperliquid API status |
-
-- Always show the raw error to the user
-- Suggest the fix
-- Never silently retry trades
-
----
-
-## Architecture Notes
-
-- **`scripts/hyperliquid.mjs`** — Core JS client using official Hyperliquid SDK
-- **`scripts/analyze-coingecko.mjs`** — CoinGecko price/volume chart analysis (JS)
-- **`scripts/analyze_market.py`** — Momentum signal engine (Python)
-- **`scripts/signals.py`** — Signal classification logic (Python)
-- **`scripts/check-positions.mjs`** — Real-time P&L tracker (JS)
-- **`scripts/scan-market.mjs`** — Quick multi-asset price scanner (JS)
-- **`references/api.md`** — Full Hyperliquid API reference
-
-Data sources:
-- Trading: `https://api.hyperliquid.xyz` + official `hyperliquid` npm package
-- Market data: CoinGecko Free API (no auth, 24h OHLCV + volume)
+  SIGNAL GUIDE:
+  🟢 STRONG BULLISH → Consider long entry (confirm volume)
+  🟡 BULLISH        → Wait for confirmation before entering
+  ⚪ NEUTRAL        → No edge, stay flat
+  🟠 BEARISH        → Wait for confirmation
+  🔴 STRONG BEARISH → Consider short entry (confirm volume)
